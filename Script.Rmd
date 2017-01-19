@@ -1,0 +1,114 @@
+---
+title: "Credit card fraud. Final lab."
+output: html_document
+---
+>```{r}
+library("rpart")
+library("rpart.plot")
+library(ROCR)
+>```
+
+##Reading and overviewing dataset.
+
+>```{r}
+card <- read.csv(file="C:\\Big Data\\creditcard.csv", header=TRUE, sep=",")
+hist(card$Class, breaks = 2, freq = TRUE, col = "lightblue", main = "Histogram of Class values")
+summary(card)
+summary(card$Class)
+sd(card$Class)
+
+sum(card$Class)
+length(card$Class)
+>```
+
+##Spliting dataset into test and train datasets.
+
+>```{r}
+traindata <- as.data.frame(card[1:210000,])
+testdata <- as.data.frame(card[210000:284807,])
+
+summary(traindata)
+hist(traindata$Class, breaks = 2, freq = TRUE, col = "lightblue", main = "Histogram of Class values in train dataset")
+hist(testdata$Class, breaks = 2, freq = TRUE, col = "lightblue", main = "Histogram of Class values in test dataset.")
+>```
+
+#Descision tree model.
+
+>```{r}
+
+rpart.control(minbucket = 40)
+
+fit <-rpart(Class ~ ., data=traindata)
+rpart.plot(fit)
+
+pred <- predict(fit,newdata = traindata[,1:30])
+conf <-table(actual=traindata[,31],predicted=pred)
+conf
+>```
+
+###results for train dataset after prediction.
+>```{r}
+predObj = prediction(pred, traindata$Class)
+rocObj = performance(predObj, measure="tpr", x.measure="fpr")
+
+aucObj = performance(predObj, measure="auc")
+auc = aucObj@y.values[[1]]
+plot(rocObj, main = paste("AUC:", auc))
+>```
+
+##Predicting for test dataset.
+>```{r}
+predtest <- predict(fit,newdata = testdata[,1:30])
+>```
+###results for test dataset.
+>```{r}
+predObjtest = prediction(predtest, testdata$Class)
+rocObjtest = performance(predObjtest, measure="tpr", x.measure="fpr")
+aucObjtest = performance(predObjtest, measure="auc")
+auctest = aucObjtest@y.values[[1]]
+plot(rocObjtest, main = paste("AUC metrics:", auctest))
+>```
+
+#Logisioc regression.
+
+##Calculating the model. 
+>```{r warnings = FALSE}
+mylogit <- glm(Class ~ .,data =as.data.frame(traindata), family=binomial(link="logit"),
+               na.action=na.pass)
+
+summary(mylogit)
+exp(mylogit$coefficients)
+>```
+
+##Train dataset prediction.
+>```{r}
+pred = predict(mylogit, type="response")
+>```
+###results for train dataset.
+>```{r}
+predObj = prediction(pred, traindata$Class)
+rocObj = performance(predObj, measure="tpr", x.measure="fpr")
+aucObj = performance(predObj, measure="auc")
+auc = aucObj@y.values[[1]]  
+auc
+plot(rocObj, main = paste("Area under the curve for logical regression on train dataset:", auc))
+>```
+
+##Test dataset prediction.
+>```{r}
+fitted.results <- predict(mylogit,newdata=testdata,type='response')
+fitted.results <- ifelse(fitted.results > 0.5,1,0)
+
+misClasificError <- mean(fitted.results != testdata$Class)
+print(paste('Accuracy',1-misClasificError))
+>```
+###results for test dataset.
+>```{r}
+p <- predict(mylogit, newdata=testdata, type="response")
+pr <- prediction(p, testdata$Class)
+prf <- performance(pr, measure = "tpr", x.measure = "fpr")
+auc <- performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+auc
+plot(prf, main = paste("AUC metrics:", auc))
+>```
